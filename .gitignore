@@ -1,0 +1,32 @@
+# Node modules (se adicionar dependências futuras)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment variables (nunca commitar credenciais)
+.env
+.env.local
+.env.production
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build (se usar bundler no futuro)
+dist/
+build/
+
+# Temporary files
+*.tmp
+.cache/

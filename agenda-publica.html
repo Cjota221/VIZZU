@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Agenda Pública - Reserve sua vaga">
+    <title>Agenda Disponível - VIZZU</title>
+    <link rel="stylesheet" href="css/vizzu.css">
+    
+    <style>
+        .public-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .slot-card {
+            background: var(--glass);
+            border: 2px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .slot-card.available {
+            border-color: var(--green-neon);
+        }
+        
+        .slot-card.available:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 20px rgba(198, 255, 0, 0.4);
+        }
+        
+        .slot-card.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="public-container page-transition">
+        <div class="page-header">
+            <h1 class="page-title">📅 Agenda VIZZU Disponível</h1>
+            <p class="page-subtitle">Escolha sua vaga ideal - Entrega garantida em 7 dias</p>
+        </div>
+
+        <div class="card" id="nextAvailableCard" style="margin-bottom: 2rem;">
+            <!-- Próxima vaga disponível -->
+        </div>
+
+        <div class="slots-grid" id="slotsGrid">
+            <!-- Slots preenchidos via JS -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/agenda.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script>
+        const token = getQueryParam('token');
+        
+        async function init() {
+            await initializeAgenda();
+            await renderSlots();
+        }
+        
+        async function renderSlots() {
+            const slots = await storage.getSlots();
+            const today = new Date().toISOString().split('T')[0];
+            const availableSlots = slots.filter(s => s.status === 'available' && s.start_date >= today);
+            
+            // Próxima vaga
+            const next = availableSlots[0];
+            if (next) {
+                document.getElementById('nextAvailableCard').innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎯</div>
+                        <h3 style="color: var(--green-neon); margin-bottom: 0.5rem;">Próxima Vaga Disponível</h3>
+                        <p style="font-size: 1.3rem; font-weight: 700;">
+                            ${formatDate(next.start_date)} - ${formatDate(next.end_date)}
+                        </p>
+                        <button class="btn btn-neon" onclick="openReserveModal('${next.id}', '${next.start_date}', '${next.end_date}')" 
+                                style="margin-top: 1rem;">
+                            🚀 Reservar Esta Vaga
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Grid de slots
+            let html = '';
+            slots.slice(0, 20).forEach(slot => {
+                const isAvailable = slot.status === 'available' && slot.start_date >= today;
+                html += `
+                    <div class="slot-card ${isAvailable ? 'available' : 'unavailable'}" 
+                         ${isAvailable ? `onclick="openReserveModal('${slot.id}', '${slot.start_date}', '${slot.end_date}')"` : ''}>
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">
+                            ${isAvailable ? '✅' : '🔒'}
+                        </div>
+                        <h3>Slot #${slot.slot_number}</h3>
+                        <p style="margin: 0.75rem 0;">
+                            📅 ${formatDateShort(slot.start_date)}<br>
+                            até<br>
+                            🏁 ${formatDateShort(slot.end_date)}
+                        </p>
+                        ${isAvailable ? 
+                            '<div class="badge badge-success">Disponível</div>' :
+                            '<div class="badge badge-danger">Ocupado</div>'
+                        }
+                    </div>
+                `;
+            });
+            
+            document.getElementById('slotsGrid').innerHTML = html;
+        }
+        
+        function openReserveModal(slotId, startDate, endDate) {
+            const content = `
+                <form id="reserveForm" onsubmit="handleReserve(event, '${slotId}')">
+                    <div class="form-group">
+                        <label class="form-label required">Nome da Loja</label>
+                        <input type="text" class="form-input" name="storeName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">Seu Nome</label>
+                        <input type="text" class="form-input" name="contactName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">WhatsApp</label>
+                        <input type="tel" class="form-input" name="phone" required placeholder="(11) 99999-9999">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">E-mail</label>
+                        <input type="email" class="form-input" name="email" required>
+                    </div>
+                    <div style="background: rgba(198, 255, 0, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <p style="margin: 0;"><strong>📅 Período:</strong> ${formatDate(startDate)} a ${formatDate(endDate)}</p>
+                        <p style="margin: 0.5rem 0 0;"><strong>💰 Valor:</strong> R$ 2.500,00</p>
+                    </div>
+                    <button type="submit" class="btn btn-neon" style="width: 100%;">Reservar Vaga</button>
+                </form>
+            `;
+            
+            showModal(content, '🎯 Reservar Vaga');
+        }
+        
+        async function handleReserve(e, slotId) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                storeName: formData.get('storeName'),
+                contactName: formData.get('contactName'),
+                phone: formData.get('phone'),
+                email: formData.get('email')
+            };
+            
+            showLoading('Reservando vaga...');
+            
+            try {
+                const result = await reserveSlot(slotId, data);
+                
+                hideLoading();
+                closeModal();
+                
+                showToast('Vaga reservada com sucesso!', 'success');
+                
+                // Enviar WhatsApp
+                const msg = `Olá ${data.contactName}! Sua vaga foi reservada com sucesso na VIZZU!\\n\\n` +
+                           `📅 Período: Slot #${result.slot.slot_number}\\n` +
+                           `💰 Valor: R$ 2.500,00\\n\\n` +
+                           `Você receberá o link de pagamento em breve. Prazo: 24h.`;
+                
+                setTimeout(() => {
+                    sendWhatsAppNotification(data.phone, msg);
+                }, 1000);
+                
+                // Recarregar
+                setTimeout(() => location.reload(), 3000);
+                
+            } catch (error) {
+                hideLoading();
+                showToast('Erro ao reservar: ' + error.message, 'error');
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

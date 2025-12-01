@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquivos do Projeto - VIZZU</title>
+    <link rel="stylesheet" href="css/vizzu.css">
+    
+    <style>
+        .editor-section {
+            margin-bottom: 2rem;
+        }
+        
+        .code-editor {
+            width: 100%;
+            min-height: 300px;
+            background: #0d0618;
+            color: #c6ff00;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border: 1px solid var(--glass-border);
+        }
+        
+        .preview-frame {
+            width: 100%;
+            height: 500px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .color-swatch {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--glass-border);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="container page-transition">
+        <div class="page-header">
+            <h1 class="page-title" id="clientName">📁 Arquivos do Projeto</h1>
+            <p class="page-subtitle" id="clientInfo">Carregando...</p>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid var(--glass-border);">
+            <button class="nav-link active" onclick="showTab('briefing')" id="tab-briefing">📋 Briefing</button>
+            <button class="nav-link" onclick="showTab('code')" id="tab-code">💻 Código</button>
+            <button class="nav-link" onclick="showTab('design')" id="tab-design">🎨 Design</button>
+            <button class="nav-link" onclick="showTab('history')" id="tab-history">📈 Histórico</button>
+        </div>
+
+        <!-- Tab: Briefing -->
+        <div id="content-briefing" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">📋 Briefing Completo</h2>
+                <div id="briefingContent">Carregando...</div>
+            </div>
+        </div>
+
+        <!-- Tab: Código -->
+        <div id="content-code" class="tab-content" style="display: none;">
+            <div class="editor-section">
+                <div class="card">
+                    <h3>HTML</h3>
+                    <textarea class="code-editor" id="htmlEditor" placeholder="<!-- Código HTML aqui -->"></textarea>
+                </div>
+            </div>
+            
+            <div class="editor-section">
+                <div class="card">
+                    <h3>CSS</h3>
+                    <textarea class="code-editor" id="cssEditor" placeholder="/* Código CSS aqui */"></textarea>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>👁️ Preview Live</h3>
+                <iframe id="preview" class="preview-frame" sandbox="allow-scripts"></iframe>
+                <button class="btn btn-primary" onclick="updatePreview()" style="margin-top: 1rem;">🔄 Atualizar Preview</button>
+            </div>
+            
+            <button class="btn btn-neon" onclick="saveCode()" style="margin-top: 1rem;">💾 Salvar Código</button>
+        </div>
+
+        <!-- Tab: Design -->
+        <div id="content-design" class="tab-content" style="display: none;">
+            <div class="card">
+                <h3>🎨 Paleta de Cores</h3>
+                <div id="colorPalette" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+                    <!-- Swatches -->
+                </div>
+                <button class="btn btn-primary" onclick="addColor()" style="margin-top: 1rem;">➕ Adicionar Cor</button>
+            </div>
+            
+            <div class="card" style="margin-top: 2rem;">
+                <h3>📝 Notas de Design</h3>
+                <textarea class="form-textarea" id="designNotes" rows="8" placeholder="Notas sobre o design..."></textarea>
+                <button class="btn btn-neon" onclick="saveDesign()" style="margin-top: 1rem;">💾 Salvar Design</button>
+            </div>
+        </div>
+
+        <!-- Tab: Histórico -->
+        <div id="content-history" class="tab-content" style="display: none;">
+            <div class="card">
+                <h3>📈 Histórico de Alterações</h3>
+                <div id="historyList">Nenhum histórico ainda</div>
+            </div>
+        </div>
+
+        <!-- Ações Finais -->
+        <div class="card" style="margin-top: 2rem; background: rgba(198, 255, 0, 0.1); border-color: var(--green-neon);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="color: var(--green-neon);">Finalizar Projeto</h3>
+                    <p style="color: rgba(255,255,255,0.7);">Download e conclusão do projeto</p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="downloadZip()">📦 Baixar ZIP</button>
+                    <button class="btn btn-success" onclick="completeProject()">✅ Marcar Concluído</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/agenda.js"></script>
+    <script src="js/briefing.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script>
+        const clientId = getQueryParam('id');
+        let client = null;
+        let slot = null;
+        let currentTab = 'briefing';
+        
+        async function init() {
+            if (!clientId) {
+                window.location.href = 'clientes.html';
+                return;
+            }
+            
+            document.getElementById('app-header').innerHTML = renderHeader('');
+            
+            client = await storage.getClientById(clientId);
+            if (!client) {
+                showToast('Cliente não encontrado', 'error');
+                return;
+            }
+            
+            const slots = await storage.getSlots();
+            slot = slots.find(s => s.client_id == clientId);
+            
+            document.getElementById('clientName').textContent = `📁 ${client.store_name || client.storeName}`;
+            document.getElementById('clientInfo').textContent = slot ? 
+                `Slot #${slot.slot_number} | ${formatDate(slot.start_date)} - ${formatDate(slot.end_date)}` : 
+                'Projeto';
+            
+            await loadBriefing();
+            await loadFiles();
+        }
+        
+        async function loadBriefing() {
+            const briefings = await storage.getBriefings();
+            const briefing = briefings.find(b => b.phone === client.phone);
+            
+            if (briefing && briefing.respostas_json) {
+                const data = JSON.parse(briefing.respostas_json);
+                document.getElementById('briefingContent').innerHTML = renderBriefingPreview(data);
+            } else {
+                document.getElementById('briefingContent').innerHTML = 
+                    '<p style="color: rgba(255,255,255,0.6);">Briefing não disponível</p>';
+            }
+        }
+        
+        async function loadFiles() {
+            const files = await storage.getFiles(clientId);
+            
+            files.forEach(file => {
+                if (file.type === 'html') document.getElementById('htmlEditor').value = file.content || '';
+                if (file.type === 'css') document.getElementById('cssEditor').value = file.content || '';
+                if (file.type === 'palette') loadPalette(file.content);
+                if (file.type === 'notes') document.getElementById('designNotes').value = file.content || '';
+            });
+        }
+        
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.nav-link').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById(`content-${tab}`).style.display = 'block';
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            currentTab = tab;
+        }
+        
+        async function saveCode() {
+            showLoading('Salvando código...');
+            
+            try {
+                await storage.saveFile({
+                    client_id: clientId,
+                    type: 'html',
+                    content: document.getElementById('htmlEditor').value
+                });
+                
+                await storage.saveFile({
+                    client_id: clientId,
+                    type: 'css',
+                    content: document.getElementById('cssEditor').value
+                });
+                
+                hideLoading();
+                showToast('Código salvo!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Erro ao salvar: ' + error.message, 'error');
+            }
+        }
+        
+        function updatePreview() {
+            const html = document.getElementById('htmlEditor').value;
+            const css = document.getElementById('cssEditor').value;
+            
+            const preview = document.getElementById('preview');
+            const doc = preview.contentDocument || preview.contentWindow.document;
+            
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>${css}</style>
+                </head>
+                <body>${html}</body>
+                </html>
+            `);
+            doc.close();
+        }
+        
+        function loadPalette(colors) {
+            if (!colors) return;
+            const palette = JSON.parse(colors);
+            renderPalette(palette);
+        }
+        
+        function renderPalette(colors = ['#4a148c', '#d500f9', '#c6ff00']) {
+            let html = '';
+            colors.forEach((color, i) => {
+                html += `
+                    <div style="text-align: center;">
+                        <input type="color" value="${color}" class="color-swatch" onchange="updateColor(${i}, this.value)">
+                        <div><small>${color}</small></div>
+                    </div>
+                `;
+            });
+            document.getElementById('colorPalette').innerHTML = html;
+        }
+        
+        async function saveDesign() {
+            const colors = Array.from(document.querySelectorAll('.color-swatch')).map(s => s.value);
+            const notes = document.getElementById('designNotes').value;
+            
+            showLoading('Salvando design...');
+            
+            try {
+                await storage.saveFile({
+                    client_id: clientId,
+                    type: 'palette',
+                    content: JSON.stringify(colors)
+                });
+                
+                await storage.saveFile({
+                    client_id: clientId,
+                    type: 'notes',
+                    content: notes
+                });
+                
+                hideLoading();
+                showToast('Design salvo!', 'success');
+            } catch (error) {
+                hideLoading();
+                showToast('Erro: ' + error.message, 'error');
+            }
+        }
+        
+        function addColor() {
+            const current = Array.from(document.querySelectorAll('.color-swatch')).map(s => s.value);
+            current.push('#000000');
+            renderPalette(current);
+        }
+        
+        function downloadZip() {
+            showToast('Funcionalidade em desenvolvimento', 'info');
+        }
+        
+        async function completeProject() {
+            if (!slot) return;
+            
+            confirm('Marcar projeto como concluído?', async () => {
+                showLoading('Finalizando...');
+                try {
+                    await completeSlot(slot.id);
+                    hideLoading();
+                    showToast('Projeto concluído!', 'success');
+                    setTimeout(() => window.location.href = 'clientes.html', 2000);
+                } catch (error) {
+                    hideLoading();
+                    showToast('Erro: ' + error.message, 'error');
+                }
+            });
+        }
+        
+        init();
+        renderPalette();
+    </script>
+</body>
+</html>

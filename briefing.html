@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Briefing Completo - VIZZU">
+    <title>Briefing - VIZZU</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/vizzu.css">
+    
+    <style>
+        .briefing-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .steps-nav {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+        
+        .step-btn {
+            padding: 0.5rem 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        
+        .step-btn.active {
+            background: var(--gradient-neon);
+            color: #fff;
+            border-color: transparent;
+        }
+        
+        .step-btn.completed {
+            background: rgba(198, 255, 0, 0.2);
+            border-color: var(--green-neon);
+            color: var(--green-neon);
+        }
+        
+        .briefing-step {
+            display: none;
+            animation: fadeInPage 0.3s ease;
+        }
+        
+        .briefing-step.active {
+            display: block;
+        }
+        
+        .step-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: space-between;
+        }
+        
+        .range-value {
+            display: inline-block;
+            margin-left: 1rem;
+            font-weight: 700;
+            color: var(--pink-neon);
+        }
+    </style>
+</head>
+<body>
+    <div class="briefing-container page-transition">
+        <!-- Header -->
+        <div class="page-header">
+            <h1 class="page-title">📋 Briefing Completo</h1>
+            <p class="page-subtitle">Preencha todas as informações para receber seu orçamento</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <!-- Steps Navigation -->
+        <div class="steps-nav" id="stepsNav">
+            <!-- Preenchido via JS -->
+        </div>
+
+        <!-- Form -->
+        <form id="briefingForm" class="card">
+            <!-- Steps preenchidos via JS -->
+            <div id="formSteps"></div>
+            
+            <!-- Actions -->
+            <div class="step-actions">
+                <button type="button" class="btn btn-outline" id="btnPrev" style="display: none;">
+                    ← Anterior
+                </button>
+                <div style="flex: 1;"></div>
+                <button type="button" class="btn btn-primary" id="btnNext">
+                    Próximo →
+                </button>
+                <button type="submit" class="btn btn-neon" id="btnSubmit" style="display: none;">
+                    📤 Enviar Briefing
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/briefing.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script>
+        // ==================== VARIÁVEIS GLOBAIS ====================
+        let currentStep = 1;
+        const totalSteps = 6;
+        let formData = {};
+        const token = getQueryParam('token') || generateToken();
+
+        // ==================== INICIALIZAÇÃO ====================
+        function init() {
+            renderStepsNav();
+            renderFormSteps();
+            loadSavedData();
+            updateProgress();
+            setupEventListeners();
+        }
+
+        // ==================== RENDERIZAR NAVEGAÇÃO ====================
+        function renderStepsNav() {
+            let html = '';
+            BRIEFING_QUESTIONS.forEach(block => {
+                html += `
+                    <button type="button" class="step-btn ${block.block === 1 ? 'active' : ''}" 
+                            data-step="${block.block}" onclick="goToStep(${block.block})">
+                        ${block.blockTitle}
+                    </button>
+                `;
+            });
+            document.getElementById('stepsNav').innerHTML = html;
+        }
+
+        // ==================== RENDERIZAR FORMULÁRIO ====================
+        function renderFormSteps() {
+            let html = '';
+            
+            BRIEFING_QUESTIONS.forEach(block => {
+                html += `
+                    <fieldset class="briefing-step ${block.block === 1 ? 'active' : ''}" data-step="${block.block}">
+                        <legend style="font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--pink-neon);">
+                            ${block.blockTitle}
+                        </legend>
+                `;
+                
+                block.questions.forEach(q => {
+                    html += `<div class="form-group">`;
+                    html += `<label class="form-label ${q.required ? 'required' : ''}">${q.label}</label>`;
+                    
+                    if (q.type === 'textarea') {
+                        html += `<textarea class="form-textarea" name="${q.id}" placeholder="${q.placeholder || ''}" 
+                                 ${q.required ? 'required' : ''}></textarea>`;
+                    } else if (q.type === 'select') {
+                        html += `<select class="form-select" name="${q.id}" ${q.required ? 'required' : ''}>`;
+                        html += `<option value="">Selecione...</option>`;
+                        q.options.forEach(opt => {
+                            html += `<option value="${opt}">${opt}</option>`;
+                        });
+                        html += `</select>`;
+                    } else if (q.type === 'range') {
+                        html += `
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <input type="range" class="form-input" name="${q.id}" 
+                                       min="${q.min}" max="${q.max}" step="${q.step}" value="${q.min}" 
+                                       ${q.required ? 'required' : ''} 
+                                       oninput="updateRangeValue(this)">
+                                <span class="range-value" id="${q.id}-value">${q.min}%</span>
+                            </div>
+                        `;
+                    } else {
+                        html += `<input type="${q.type}" class="form-input" name="${q.id}" 
+                                 placeholder="${q.placeholder || ''}" ${q.required ? 'required' : ''}>`;
+                    }
+                    
+                    html += `</div>`;
+                });
+                
+                html += `</fieldset>`;
+            });
+            
+            document.getElementById('formSteps').innerHTML = html;
+        }
+
+        // ==================== UPDATE RANGE VALUE ====================
+        function updateRangeValue(input) {
+            const valueSpan = document.getElementById(input.name + '-value');
+            if (valueSpan) {
+                valueSpan.textContent = input.value + '%';
+            }
+        }
+
+        // ==================== SETUP EVENT LISTENERS ====================
+        function setupEventListeners() {
+            // Salvar no blur
+            document.querySelectorAll('.form-input, .form-textarea, .form-select').forEach(input => {
+                input.addEventListener('blur', saveFormData);
+                input.addEventListener('change', saveFormData);
+            });
+            
+            // Botões
+            document.getElementById('btnPrev').onclick = () => goToStep(currentStep - 1);
+            document.getElementById('btnNext').onclick = () => goToStep(currentStep + 1);
+            document.getElementById('briefingForm').onsubmit = handleSubmit;
+            
+            // Máscara de telefone
+            const phoneInput = document.querySelector('[name="phone"]');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', (e) => {
+                    e.target.value = phoneMask(e.target.value);
+                });
+            }
+        }
+
+        // ==================== SALVAR DADOS ====================
+        function saveFormData() {
+            const form = document.getElementById('briefingForm');
+            const data = new FormData(form);
+            
+            data.forEach((value, key) => {
+                formData[key] = value;
+            });
+            
+            localStorage.setItem('briefing_draft_' + token, JSON.stringify(formData));
+            updateProgress();
+        }
+
+        // ==================== CARREGAR DADOS SALVOS ====================
+        function loadSavedData() {
+            const saved = localStorage.getItem('briefing_draft_' + token);
+            if (saved) {
+                formData = JSON.parse(saved);
+                
+                // Preencher campos
+                Object.keys(formData).forEach(key => {
+                    const input = document.querySelector(`[name="${key}"]`);
+                    if (input) {
+                        input.value = formData[key];
+                        
+                        // Update range display
+                        if (input.type === 'range') {
+                            updateRangeValue(input);
+                        }
+                    }
+                });
+            }
+        }
+
+        // ==================== NAVEGAR ENTRE STEPS ====================
+        function goToStep(step) {
+            if (step < 1 || step > totalSteps) return;
+            
+            // Validar step atual antes de avançar
+            if (step > currentStep && !validateCurrentStep()) {
+                showToast('Preencha todos os campos obrigatórios', 'error');
+                return;
+            }
+            
+            // Atualizar step
+            currentStep = step;
+            
+            // Atualizar visibilidade
+            document.querySelectorAll('.briefing-step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`.briefing-step[data-step="${step}"]`).classList.add('active');
+            
+            // Atualizar navegação
+            document.querySelectorAll('.step-btn').forEach(btn => {
+                btn.classList.remove('active');
+                const btnStep = parseInt(btn.dataset.step);
+                if (btnStep === step) {
+                    btn.classList.add('active');
+                } else if (btnStep < step) {
+                    btn.classList.add('completed');
+                }
+            });
+            
+            // Atualizar botões
+            document.getElementById('btnPrev').style.display = step > 1 ? 'block' : 'none';
+            document.getElementById('btnNext').style.display = step < totalSteps ? 'block' : 'none';
+            document.getElementById('btnSubmit').style.display = step === totalSteps ? 'block' : 'none';
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==================== VALIDAR STEP ATUAL ====================
+        function validateCurrentStep() {
+            const currentStepEl = document.querySelector(`.briefing-step[data-step="${currentStep}"]`);
+            const requiredInputs = currentStepEl.querySelectorAll('[required]');
+            
+            let valid = true;
+            requiredInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    valid = false;
+                    input.style.borderColor = '#f44336';
+                } else {
+                    input.style.borderColor = '';
+                }
+            });
+            
+            return valid;
+        }
+
+        // ==================== ATUALIZAR PROGRESSO ====================
+        function updateProgress() {
+            const progress = calculateProgress(formData);
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        // ==================== SUBMIT ====================
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            saveFormData();
+            
+            // Validar tudo
+            if (!validateCurrentStep()) {
+                showToast('Preencha todos os campos obrigatórios', 'error');
+                return;
+            }
+            
+            showLoading('Enviando briefing...');
+            
+            try {
+                await submitBriefing(token, formData);
+                
+                hideLoading();
+                
+                // Limpar draft
+                localStorage.removeItem('briefing_draft_' + token);
+                
+                // Mostrar sucesso
+                document.querySelector('.briefing-container').innerHTML = `
+                    <div style="text-align: center; padding: 4rem 2rem;">
+                        <div style="font-size: 5rem; margin-bottom: 1rem;">🎉</div>
+                        <h1 style="font-size: 2.5rem; margin-bottom: 1rem; background: var(--gradient-neon);
+                                   -webkit-background-clip: text; background-clip: text; 
+                                   -webkit-text-fill-color: transparent;">
+                            Briefing Enviado!
+                        </h1>
+                        <p style="font-size: 1.2rem; color: rgba(255,255,255,0.8); margin-bottom: 2rem;">
+                            Obrigado, <strong>${formData.contactName}</strong>!<br>
+                            Recebemos suas informações e entraremos em contato em até <strong>24 horas</strong>.
+                        </p>
+                        <div class="card" style="max-width: 500px; margin: 0 auto; text-align: left;">
+                            <h3 style="margin-bottom: 1rem;">📱 Próximos Passos</h3>
+                            <ol style="color: rgba(255,255,255,0.8); line-height: 2;">
+                                <li>Análise do briefing pela equipe VIZZU</li>
+                                <li>Proposta comercial detalhada</li>
+                                <li>Reunião de alinhamento (se necessário)</li>
+                                <li>Início do projeto em 7 dias</li>
+                            </ol>
+                        </div>
+                        <p style="margin-top: 2rem; color: rgba(255,255,255,0.6);">
+                            📧 ${formData.email}<br>
+                            📱 ${formData.phone}
+                        </p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                hideLoading();
+                showToast('Erro ao enviar briefing: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== EXECUTAR ====================
+        init();
+    </script>
+</body>
+</html>

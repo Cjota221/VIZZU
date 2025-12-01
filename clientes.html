@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - VIZZU</title>
+    <link rel="stylesheet" href="css/vizzu.css">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="container page-transition">
+        <div class="page-header">
+            <h1 class="page-title">👥 Clientes</h1>
+            <p class="page-subtitle">Gerenciamento completo de clientes e projetos</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <input type="text" class="form-input" id="searchInput" placeholder="🔍 Buscar cliente..." 
+                       style="flex: 1; min-width: 250px;" oninput="filterClients()">
+                <select class="form-select" id="statusFilter" onchange="filterClients()" style="min-width: 200px;">
+                    <option value="">Todos os status</option>
+                    <option value="pending_payment">Aguardando Pagamento</option>
+                    <option value="paid">Pago</option>
+                    <option value="completed">Concluído</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Loja</th>
+                        <th>Contato</th>
+                        <th>WhatsApp</th>
+                        <th>Status</th>
+                        <th>Slot</th>
+                        <th>Dias Restantes</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="clientsTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem;">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/agenda.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script>
+        let allClients = [];
+        let allSlots = [];
+        
+        async function init() {
+            document.getElementById('app-header').innerHTML = renderHeader('clientes');
+            await loadClients();
+        }
+        
+        async function loadClients() {
+            allClients = await storage.getClients();
+            allSlots = await storage.getSlots();
+            renderClients(allClients);
+        }
+        
+        function renderClients(clients) {
+            if (clients.length === 0) {
+                document.getElementById('clientsTableBody').innerHTML = `
+                    <tr><td colspan="7">${renderEmptyState('👥', 'Nenhum cliente encontrado', 'Os clientes aparecerão aqui quando reservarem vagas')}</td></tr>
+                `;
+                return;
+            }
+            
+            let html = '';
+            clients.forEach(client => {
+                const slot = allSlots.find(s => s.client_id === client.id);
+                const daysLeft = slot ? getDaysRemaining(slot.end_date) : '-';
+                
+                html += `
+                    <tr>
+                        <td><strong>${client.store_name || client.storeName}</strong></td>
+                        <td>${client.contact_name || client.contactName}</td>
+                        <td>${formatPhone(client.phone)}</td>
+                        <td>${getStatusBadge(client.status)}</td>
+                        <td>${slot ? `Slot #${slot.slot_number}` : '-'}</td>
+                        <td>${daysLeft !== '-' ? `${daysLeft} dias` : '-'}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                ${slot ? `<button class="btn btn-primary" onclick="viewProject(${client.id})" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">👁️ Ver</button>` : ''}
+                                ${client.status === 'pending_payment' && slot ? 
+                                    `<button class="btn btn-success" onclick="confirmClientPayment('${slot.id}')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">💰 Pagar</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            document.getElementById('clientsTableBody').innerHTML = html;
+        }
+        
+        function filterClients() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            
+            let filtered = allClients;
+            
+            if (search) {
+                filtered = filtered.filter(c => 
+                    (c.store_name || c.storeName || '').toLowerCase().includes(search) ||
+                    (c.contact_name || c.contactName || '').toLowerCase().includes(search) ||
+                    c.phone.includes(search) ||
+                    c.email.toLowerCase().includes(search)
+                );
+            }
+            
+            if (status) {
+                filtered = filtered.filter(c => c.status === status);
+            }
+            
+            renderClients(filtered);
+        }
+        
+        function viewProject(clientId) {
+            window.location.href = `arquivos.html?id=${clientId}`;
+        }
+        
+        async function confirmClientPayment(slotId) {
+            confirm('Confirmar pagamento deste cliente?', async () => {
+                showLoading('Confirmando pagamento...');
+                try {
+                    await confirmPayment(slotId);
+                    hideLoading();
+                    showToast('Pagamento confirmado!', 'success');
+                    await loadClients();
+                } catch (error) {
+                    hideLoading();
+                    showToast('Erro: ' + error.message, 'error');
+                }
+            });
+        }
+        
+        init();
+    </script>
+</body>
+</html>
