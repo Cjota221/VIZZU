@@ -5,7 +5,7 @@
 
 // ==================== CONFIGURAÇÃO ====================
 const SUPABASE_URL = 'https://qnozgkocxxzrczyczaio.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFub3pna29jeHh6cmN6eWN6YWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODQzNjQsImV4cCI6MjA0ODY2MDM2NH0.cZUVJ7qe';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFub3pna29jeHh6cmN6eWN6YWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODQzNjQsImV4cCI6MjA0ODY2MDM2NH0.cZUVJ7qeN-3p9LrY8vZ5xHGqJ_6wK8FZdVxN0FJTxQo';
 
 // Cliente Supabase (importar via CDN no HTML)
 let supabase;
@@ -15,7 +15,7 @@ if (typeof window !== 'undefined' && window.supabase) {
 }
 
 // ==================== FALLBACK LOCALSTORAGE (DESENVOLVIMENTO) ====================
-const USE_SUPABASE = true; // Ativado para produção
+const USE_SUPABASE = false; // Desativado temporariamente para teste local
 
 class StorageAdapter {
     constructor() {

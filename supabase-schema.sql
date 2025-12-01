@@ -103,20 +103,40 @@ CREATE POLICY "Authenticated users can update briefings" ON public_briefings
 
 -- ==================== POLICIES: AGENDA_SLOTS ====================
 
--- Qualquer pessoa pode ver slots disponíveis (público)
-CREATE POLICY "Anyone can view available slots" ON agenda_slots
+-- Qualquer pessoa pode ver todos os slots (público)
+CREATE POLICY "Anyone can view all slots" ON agenda_slots
     FOR SELECT 
-    USING (status = 'available' OR auth.role() = 'authenticated');
+    USING (true);
 
--- Admin pode fazer tudo
+-- Qualquer pessoa pode inserir novos slots (para inicialização)
+CREATE POLICY "Anyone can insert slots" ON agenda_slots
+    FOR INSERT 
+    WITH CHECK (true);
+
+-- Qualquer pessoa pode atualizar slots (para reservas públicas)
+CREATE POLICY "Anyone can update slots" ON agenda_slots
+    FOR UPDATE 
+    USING (true);
+
+-- Admin autenticado pode fazer tudo
 CREATE POLICY "Authenticated users can manage all slots" ON agenda_slots
     FOR ALL 
     USING (auth.role() = 'authenticated');
 
 -- ==================== POLICIES: CLIENTS ====================
 
--- Apenas admin pode acessar clientes
-CREATE POLICY "Authenticated users only for clients" ON clients
+-- Qualquer pessoa pode inserir clientes (para reservas públicas)
+CREATE POLICY "Anyone can insert clients" ON clients
+    FOR INSERT 
+    WITH CHECK (true);
+
+-- Qualquer pessoa pode ler clientes (necessário para exibir nome em slots)
+CREATE POLICY "Anyone can view clients" ON clients
+    FOR SELECT 
+    USING (true);
+
+-- Apenas admin autenticado pode atualizar e deletar
+CREATE POLICY "Authenticated users can manage clients" ON clients
     FOR ALL 
     USING (auth.role() = 'authenticated');
 
