@@ -5,41 +5,61 @@
 
 // ==================== INICIALIZAÇÃO ====================
 async function initializeAgenda() {
-    const slots = await storage.getSlots();
+    vizzuLog('QUERY', '🚀 Inicializando agenda...');
     
-    // Se não houver slots, criar os 30 primeiros
-    if (slots.length === 0) {
-        await createInitialSlots();
+    try {
+        const slots = await storage.getSlots();
+        vizzuLog('DATA', `${slots.length} slots encontrados`);
+        
+        // Se não houver slots, criar os 30 primeiros
+        if (slots.length === 0) {
+            vizzuLog('WARNING', 'Nenhum slot encontrado. Criando slots iniciais...');
+            await createInitialSlots();
+        } else {
+            vizzuLog('SUCCESS', 'Agenda já inicializada');
+        }
+    } catch (error) {
+        vizzuLog('ERROR', 'Erro ao inicializar agenda', error);
+        throw error;
     }
 }
 
 // ==================== CRIAR SLOTS INICIAIS ====================
 async function createInitialSlots() {
+    vizzuLog('QUERY', 'Criando 30 slots iniciais...');
+    
     const TOTAL_SLOTS = 30;
     const DAYS_PER_SLOT = 7;
     
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
     
-    for (let i = 0; i < TOTAL_SLOTS; i++) {
-        const startDate = new Date(currentDate);
-        const endDate = new Date(currentDate);
-        endDate.setDate(endDate.getDate() + DAYS_PER_SLOT - 1);
+    try {
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+            const startDate = new Date(currentDate);
+            const endDate = new Date(currentDate);
+            endDate.setDate(endDate.getDate() + DAYS_PER_SLOT - 1);
+            
+            await storage.createSlot({
+                slot_number: i + 1,
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0],
+                status: 'available',
+                payment_status: null,
+                client_id: null,
+                reserved_at: null,
+                payment_confirmed_at: null,
+                completed_at: null
+            });
+            
+            // Próximo slot começa no dia seguinte ao fim do atual
+            currentDate.setDate(currentDate.getDate() + DAYS_PER_SLOT);
+        }
         
-        await storage.createSlot({
-            slot_number: i + 1,
-            start_date: startDate.toISOString().split('T')[0],
-            end_date: endDate.toISOString().split('T')[0],
-            status: 'available',
-            payment_status: null,
-            client_id: null,
-            reserved_at: null,
-            payment_confirmed_at: null,
-            completed_at: null
-        });
-        
-        // Próximo slot começa no dia seguinte ao fim do atual
-        currentDate.setDate(currentDate.getDate() + DAYS_PER_SLOT);
+        vizzuLog('SUCCESS', `✅ ${TOTAL_SLOTS} slots criados com sucesso`);
+    } catch (error) {
+        vizzuLog('ERROR', 'Erro ao criar slots iniciais', error);
+        throw error;
     }
 }
 

@@ -1,21 +1,54 @@
 /* ========================================
    VIZZU - SUPABASE CLIENT
-   Configuração + RLS Policies
+   Configuração + RLS Policies + Debug
    ======================================== */
+
+// ==================== DEBUG MODE ====================
+const DEBUG_MODE = true; // Ativar logs detalhados
+
+function debugLog(categoria, mensagem, dados = null) {
+    if (!DEBUG_MODE) return;
+    
+    const timestamp = new Date().toLocaleTimeString('pt-BR');
+    const estilo = {
+        '🔧': 'color: #2196F3; font-weight: bold;', // Config
+        '✅': 'color: #4CAF50; font-weight: bold;', // Sucesso
+        '❌': 'color: #F44336; font-weight: bold;', // Erro
+        '⚠️': 'color: #FF9800; font-weight: bold;', // Aviso
+        '📊': 'color: #9C27B0; font-weight: bold;', // Dados
+        '🔍': 'color: #00BCD4; font-weight: bold;'  // Query
+    };
+    
+    console.log(`%c[${timestamp}] ${categoria} ${mensagem}`, estilo[categoria] || '');
+    if (dados) {
+        console.log('   📦 Dados:', dados);
+    }
+}
 
 // ==================== CONFIGURAÇÃO ====================
 const SUPABASE_URL = 'https://qnozgkocxxzrczyczaio.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFub3pna29jeHh6cmN6eWN6YWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMwODQzNjQsImV4cCI6MjA0ODY2MDM2NH0.cZUVJ7qeN-3p9LrY8vZ5xHGqJ_6wK8FZdVxN0FJTxQo';
+
+debugLog('🔧', 'Configuração Supabase:', {
+    url: SUPABASE_URL,
+    keyLength: SUPABASE_ANON_KEY.length,
+    keyPreview: SUPABASE_ANON_KEY.substring(0, 50) + '...'
+});
 
 // Cliente Supabase (importar via CDN no HTML)
 let supabase;
 
 if (typeof window !== 'undefined' && window.supabase) {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    debugLog('✅', 'Cliente Supabase criado com sucesso');
+} else {
+    debugLog('⚠️', 'CDN do Supabase não carregado - usando LocalStorage');
 }
 
 // ==================== FALLBACK LOCALSTORAGE (DESENVOLVIMENTO) ====================
-const USE_SUPABASE = false; // Desativado temporariamente para teste local
+const USE_SUPABASE = false; // false = LocalStorage | true = Supabase
+
+debugLog('🔧', `Modo de armazenamento: ${USE_SUPABASE ? 'SUPABASE' : 'LOCALSTORAGE'}`);
 
 class StorageAdapter {
     constructor() {
