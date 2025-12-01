@@ -12,29 +12,42 @@ let allSlots = [];
 
 // ==================== INICIALIZAÇÃO ====================
 async function init() {
-    // Renderizar header
-    document.getElementById('app-header').innerHTML = renderHeader();
+    vizzuLog('CONFIG', '🚀 Inicializando Agenda Pública...');
     
-    // Inicializar agenda (criar slots se necessário)
-    await initializeAgenda();
-    
-    // Carregar slots
-    await loadSlots();
+    try {
+        // Renderizar header
+        document.getElementById('app-header').innerHTML = renderHeader();
+        vizzuLog('SUCCESS', 'Header renderizado');
+        
+        // Inicializar agenda (criar slots se necessário)
+        await initializeAgenda();
+        
+        // Carregar slots
+        await loadSlots();
+        
+        vizzuLog('SUCCESS', '✅ Agenda Pública inicializada com sucesso!');
+    } catch (error) {
+        vizzuLog('ERROR', 'Erro ao inicializar Agenda Pública', error);
+        showToast('Erro ao carregar página', 'error');
+    }
 }
 
 // ==================== CARREGAR SLOTS ====================
 async function loadSlots() {
+    vizzuLog('QUERY', 'Carregando slots...');
+    
     try {
         showLoading(true);
         
         // Obter todos os slots
         allSlots = await storage.getSlots();
+        vizzuLog('DATA', `${allSlots.length} slots carregados do storage`);
         
         // Aplicar filtro atual
         await applyCurrentFilter();
         
     } catch (error) {
-        console.error('Erro ao carregar slots:', error);
+        vizzuLog('ERROR', 'Erro ao carregar slots', error);
         showToast('Erro ao carregar slots disponíveis', 'error');
         
         // Mostrar estado vazio
@@ -52,19 +65,26 @@ async function loadSlots() {
 
 // ==================== APLICAR FILTRO ====================
 async function applyCurrentFilter() {
+    vizzuLog('QUERY', `Aplicando filtro: ${currentFilter}`);
+    
     let filtered = [...allSlots];
     
     // Aplicar filtro
     if (currentFilter === 'available') {
         filtered = filtered.filter(s => s.status === 'available');
+        vizzuLog('DATA', `Filtro 'available': ${filtered.length} slots encontrados`);
     } else if (currentFilter === 'next30') {
         const next30Days = new Date();
         next30Days.setDate(next30Days.getDate() + 30);
         filtered = filtered.filter(s => new Date(s.start_date) <= next30Days);
+        vizzuLog('DATA', `Filtro 'next30': ${filtered.length} slots encontrados`);
     } else if (currentFilter === 'next60') {
         const next60Days = new Date();
         next60Days.setDate(next60Days.getDate() + 60);
         filtered = filtered.filter(s => new Date(s.start_date) <= next60Days);
+        vizzuLog('DATA', `Filtro 'next60': ${filtered.length} slots encontrados`);
+    } else {
+        vizzuLog('DATA', `Filtro 'all': ${filtered.length} slots (sem filtro)`);
     }
     
     // Ordenar por data de início
@@ -75,15 +95,20 @@ async function applyCurrentFilter() {
     document.getElementById('slotsCount').textContent = `${filtered.length} slots`;
     document.getElementById('availableCount').textContent = `${availableCount} disponíveis`;
     
+    vizzuLog('SUCCESS', `Contadores atualizados: ${filtered.length} exibidos, ${availableCount} disponíveis`);
+    
     // Renderizar slots
     renderSlots(filtered);
 }
 
 // ==================== RENDERIZAR SLOTS ====================
 function renderSlots(slots) {
+    vizzuLog('QUERY', `Renderizando ${slots.length} slots...`);
+    
     const grid = document.getElementById('slotsGrid');
     
     if (slots.length === 0) {
+        vizzuLog('WARNING', 'Nenhum slot para exibir');
         grid.innerHTML = `
             <div class="empty-state" style="grid-column: 1/-1;">
                 <div class="empty-icon">📭</div>
@@ -96,7 +121,7 @@ function renderSlots(slots) {
     
     let html = '';
     
-    slots.forEach(slot => {
+    slots.forEach((slot, index) => {
         const isAvailable = slot.status === 'available';
         const isReserved = slot.payment_status === 'pending';
         const isOccupied = !isAvailable && !isReserved;
@@ -161,10 +186,12 @@ function renderSlots(slots) {
     });
     
     grid.innerHTML = html;
+    vizzuLog('SUCCESS', `✅ ${slots.length} slots renderizados com sucesso`);
 }
 
 // ==================== FILTRAR SLOTS ====================
 async function filterSlots(filter) {
+    vizzuLog('QUERY', `Mudando filtro para: ${filter}`);
     currentFilter = filter;
     
     // Atualizar botões ativos
