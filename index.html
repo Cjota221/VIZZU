@@ -3,60 +3,347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="VIZZU - Sistema de Agendamento e Gestão de Projetos">
+    <meta name="description" content="VIZZU - Dashboard Profissional de Agendamento">
     <title>Dashboard - VIZZU Agendamento</title>
     
     <!-- CSS -->
     <link rel="stylesheet" href="css/vizzu.css">
+    
+    <style>
+        /* Dashboard Específico */
+        .dashboard-grid {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .progress-bar-slim {
+            width: 100%;
+            height: 4px;
+            background: var(--glass);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill-slim {
+            height: 100%;
+            background: var(--gradient-neon);
+            transition: width 0.5s ease;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #f44336;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .action-btn {
+            padding: 1.5rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+        }
+        
+        .action-btn:hover {
+            background: var(--glass-hover);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-neon);
+        }
+        
+        .action-icon {
+            font-size: 2.5rem;
+        }
+        
+        .briefing-card {
+            background: var(--glass);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--pink-neon);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .briefing-card:hover {
+            background: var(--glass-hover);
+            transform: translateX(4px);
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+            padding-bottom: 1.5rem;
+            border-left: 2px solid var(--glass-border);
+        }
+        
+        .timeline-item:last-child {
+            border-left: 2px solid transparent;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--pink-neon);
+            box-shadow: 0 0 10px var(--pink-neon);
+        }
+        
+        .calendar-interactive {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .day-card {
+            background: var(--glass);
+            border: 2px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .day-card.available {
+            border-color: var(--green-neon);
+            background: rgba(198, 255, 0, 0.05);
+        }
+        
+        .day-card.occupied {
+            border-color: var(--purple-neon);
+            background: rgba(124, 77, 255, 0.05);
+        }
+        
+        .day-card.pending {
+            border-color: #ffc107;
+            background: rgba(255, 193, 7, 0.05);
+        }
+        
+        .day-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        
+        .export-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: var(--darker-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            min-width: 150px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .export-menu.active {
+            display: block;
+        }
+        
+        .export-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .export-item:hover {
+            background: var(--glass-hover);
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-interactive {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Header será injetado via JS -->
+    <!-- Header -->
     <div id="app-header"></div>
 
     <!-- Container Principal -->
     <div class="container page-transition">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1 class="page-title">📊 Dashboard VIZZU</h1>
-            <p class="page-subtitle">Visão geral dos próximos 7 dias e estatísticas</p>
+        <!-- Page Header com Ações -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 class="page-title" style="margin-bottom: 0.25rem;">📊 Dashboard VIZZU</h1>
+                <p class="page-subtitle" style="margin: 0;">Visão completa do sistema de agendamento</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-outline" onclick="refreshDashboard()" title="Atualizar dados">
+                    🔄 Atualizar
+                </button>
+                <div style="position: relative;">
+                    <button class="btn btn-primary" onclick="toggleExportMenu()">
+                        📥 Exportar
+                    </button>
+                    <div class="export-menu" id="exportMenu">
+                        <div class="export-item" onclick="exportData('json')">📄 JSON</div>
+                        <div class="export-item" onclick="exportData('csv')">📊 CSV</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Stats Cards -->
+        <!-- 1. ESTATÍSTICAS PRINCIPAIS -->
         <div class="stats-grid" id="statsGrid">
-            <!-- Preenchido via JS -->
+            <!-- Carregando via JS -->
+            <div class="stat-card pulse">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value">...</div>
+                <div class="stat-label">Carregando...</div>
+            </div>
         </div>
 
-        <!-- Próximos 7 Dias -->
+        <!-- 2. AÇÕES RÁPIDAS -->
+        <div class="quick-actions">
+            <div class="action-btn" onclick="showLinkGenerator()">
+                <div class="action-icon">🔗</div>
+                <strong>Gerar Links</strong>
+                <small style="opacity: 0.7;">Briefing & Agenda</small>
+            </div>
+            <a href="clientes.html" class="action-btn">
+                <div class="action-icon">👥</div>
+                <strong>Clientes</strong>
+                <small style="opacity: 0.7;">Gerenciar projetos</small>
+            </a>
+            <div class="action-btn" onclick="showNotifications()">
+                <div class="action-icon">🔔</div>
+                <strong>Notificações</strong>
+                <small style="opacity: 0.7;" id="notificationCount">0 alertas</small>
+                <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
+            </div>
+            <div class="action-btn" onclick="generateReport()">
+                <div class="action-icon">📈</div>
+                <strong>Relatório</strong>
+                <small style="opacity: 0.7;">Análise completa</small>
+            </div>
+        </div>
+
+        <!-- 3. OCUPAÇÃO DA AGENDA (Barra de Progresso) -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">📅 Próximos 7 Dias</h2>
+                <h2 class="card-title">📊 Ocupação da Agenda (7 dias)</h2>
             </div>
-            <div class="calendar-grid" id="next7DaysCalendar">
-                <!-- Preenchido via JS -->
+            <div id="occupancyProgress">
+                <!-- Via JS -->
             </div>
         </div>
 
-        <!-- Ações Rápidas -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+        <!-- 4. CALENDÁRIO ADMINISTRATIVO (7 DIAS) -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 class="card-title">📅 Calendário Interativo - Próximos 7 Dias</h2>
+                <div style="display: flex; gap: 1rem; font-size: 0.85rem;">
+                    <span style="color: var(--green-neon);">⬤ Livre</span>
+                    <span style="color: var(--purple-neon);">⬤ Ocupado</span>
+                    <span style="color: #ffc107;">⬤ Pendente</span>
+                </div>
+            </div>
+            <div class="calendar-interactive" id="calendarInteractive">
+                <!-- Via JS -->
+            </div>
+        </div>
+
+        <!-- 5. BRIEFINGS & CLIENTES -->
+        <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
+            <!-- Briefings Pendentes -->
             <div class="card">
-                <h3 style="margin-bottom: 1rem;">📋 Briefings Pendentes</h3>
-                <div id="pendingBriefings">
-                    <p style="color: rgba(255,255,255,0.6);">Carregando...</p>
+                <div class="card-header">
+                    <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        📋 Briefings Pendentes
+                        <span class="badge badge-warning" id="briefingCount">0</span>
+                    </h3>
+                </div>
+                <div id="briefingsList">
+                    <p style="color: rgba(255,255,255,0.5); text-align: center; padding: 2rem;">
+                        Carregando...
+                    </p>
                 </div>
             </div>
 
+            <!-- Pagamentos Pendentes -->
             <div class="card">
-                <h3 style="margin-bottom: 1rem;">💰 Pagamentos Pendentes</h3>
-                <div id="pendingPayments">
-                    <p style="color: rgba(255,255,255,0.6);">Carregando...</p>
+                <div class="card-header">
+                    <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        💰 Pagamentos Pendentes
+                        <span class="badge badge-danger" id="paymentCount">0</span>
+                    </h3>
+                </div>
+                <div id="paymentsList">
+                    <p style="color: rgba(255,255,255,0.5); text-align: center; padding: 2rem;">
+                        Carregando...
+                    </p>
                 </div>
             </div>
 
+            <!-- Projetos em Andamento -->
             <div class="card">
-                <h3 style="margin-bottom: 1rem;">🚀 Em Andamento</h3>
-                <div id="inProgressProjects">
-                    <p style="color: rgba(255,255,255,0.6);">Carregando...</p>
+                <div class="card-header">
+                    <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        🚀 Em Andamento
+                        <span class="badge badge-info" id="progressCount">0</span>
+                    </h3>
                 </div>
+                <div id="progressList">
+                    <p style="color: rgba(255,255,255,0.5); text-align: center; padding: 2rem;">
+                        Carregando...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. TIMELINE DE ATIVIDADES RECENTES -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">🕐 Atividades Recentes</h2>
+            </div>
+            <div id="timeline">
+                <!-- Via JS -->
             </div>
         </div>
     </div>
@@ -68,155 +355,6 @@
     <script src="js/briefing.js"></script>
     <script src="js/ui.js"></script>
     
-    <script>
-        // ==================== INICIALIZAÇÃO ====================
-        async function init() {
-            // Renderizar header
-            document.getElementById('app-header').innerHTML = renderHeader('dashboard');
-            
-            // Inicializar agenda (criar slots se necessário)
-            await initializeAgenda();
-            
-            // Carregar dados
-            await loadStats();
-            await loadNext7Days();
-            await loadPendingItems();
-        }
-
-        // ==================== CARREGAR ESTATÍSTICAS ====================
-        async function loadStats() {
-            const stats = await getAgendaStats();
-            
-            const statsHtml = `
-                <div class="stat-card">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-value">${stats.upcomingAvailable}/7</div>
-                    <div class="stat-label">Vagas Disponíveis (30 dias)</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-value">${formatCurrency(stats.revenue.confirmed)}</div>
-                    <div class="stat-label">Receita Confirmada</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">⏳</div>
-                    <div class="stat-value">${stats.pendingPayment}</div>
-                    <div class="stat-label">Aguardando Pagamento</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-value">${stats.completed}</div>
-                    <div class="stat-label">Projetos Concluídos</div>
-                </div>
-            `;
-            
-            document.getElementById('statsGrid').innerHTML = statsHtml;
-        }
-
-        // ==================== CARREGAR PRÓXIMOS 7 DIAS ====================
-        async function loadNext7Days() {
-            const days = await getNext7DaysSlots();
-            
-            let html = '';
-            days.forEach(day => {
-                const slot = day.slot;
-                const isAvailable = slot && slot.status === 'available';
-                const isOccupied = slot && slot.status !== 'available';
-                
-                html += `
-                    <div class="calendar-day ${isAvailable ? 'available' : ''} ${isOccupied ? 'occupied' : ''}">
-                        <div class="day-label">${day.dayOfWeek}</div>
-                        <div class="day-number">${day.dayNumber}</div>
-                        <div class="day-status">
-                            ${isAvailable ? '✅ Livre' : isOccupied ? '🔒 Ocupado' : '⚪ Sem slot'}
-                        </div>
-                        ${slot ? `<small style="opacity: 0.7;">Slot #${slot.slot_number}</small>` : ''}
-                    </div>
-                `;
-            });
-            
-            document.getElementById('next7DaysCalendar').innerHTML = html;
-        }
-
-        // ==================== CARREGAR ITENS PENDENTES ====================
-        async function loadPendingItems() {
-            // Briefings pendentes
-            const briefings = await storage.getBriefings();
-            const pending = briefings.filter(b => b.status === 'pending_review');
-            
-            if (pending.length === 0) {
-                document.getElementById('pendingBriefings').innerHTML = 
-                    '<p style="color: rgba(255,255,255,0.5);">Nenhum briefing pendente</p>';
-            } else {
-                let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
-                pending.slice(0, 3).forEach(b => {
-                    html += `
-                        <div style="padding: 0.75rem; background: var(--glass); border-radius: 8px; border-left: 3px solid var(--pink-neon);">
-                            <strong>${b.store_name}</strong><br>
-                            <small style="opacity: 0.7;">${new Date(b.submitted_at).toLocaleDateString('pt-BR')}</small>
-                        </div>
-                    `;
-                });
-                if (pending.length > 3) {
-                    html += `<small style="opacity: 0.7;">+${pending.length - 3} mais...</small>`;
-                }
-                html += '</div>';
-                document.getElementById('pendingBriefings').innerHTML = html;
-            }
-            
-            // Pagamentos pendentes
-            const slots = await storage.getSlots();
-            const pendingPayments = slots.filter(s => s.payment_status === 'pending');
-            
-            if (pendingPayments.length === 0) {
-                document.getElementById('pendingPayments').innerHTML = 
-                    '<p style="color: rgba(255,255,255,0.5);">Nenhum pagamento pendente</p>';
-            } else {
-                let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
-                pendingPayments.slice(0, 3).forEach(async s => {
-                    const client = await storage.getClientById(s.client_id);
-                    html += `
-                        <div style="padding: 0.75rem; background: var(--glass); border-radius: 8px; border-left: 3px solid #ffc107;">
-                            <strong>Slot #${s.slot_number}</strong><br>
-                            <small style="opacity: 0.7;">${client ? client.store_name : 'Cliente'}</small>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                document.getElementById('pendingPayments').innerHTML = html;
-            }
-            
-            // Em andamento
-            const inProgress = slots.filter(s => s.status === 'in_progress');
-            
-            if (inProgress.length === 0) {
-                document.getElementById('inProgressProjects').innerHTML = 
-                    '<p style="color: rgba(255,255,255,0.5);">Nenhum projeto em andamento</p>';
-            } else {
-                let html = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
-                inProgress.slice(0, 3).forEach(async s => {
-                    const client = await storage.getClientById(s.client_id);
-                    const daysLeft = getDaysRemaining(s.end_date);
-                    html += `
-                        <div style="padding: 0.75rem; background: var(--glass); border-radius: 8px; border-left: 3px solid var(--blue-neon);">
-                            <strong>Slot #${s.slot_number}</strong><br>
-                            <small style="opacity: 0.7;">${daysLeft} dias restantes</small>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                document.getElementById('inProgressProjects').innerHTML = html;
-            }
-        }
-
-        // ==================== EXECUTAR ====================
-        init().catch(err => {
-            console.error('Erro ao inicializar:', err);
-            showToast('Erro ao carregar dashboard', 'error');
-        });
-    </script>
+    <script src="js/dashboard.js"></script>
 </body>
 </html>
